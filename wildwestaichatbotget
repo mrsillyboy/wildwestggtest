@@ -1,0 +1,146 @@
+<!DOCTYPE html><html lang="en"><head><meta name="referrer" content="no-referrer-when-downgrade">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bargain Blunder Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game-container {
+            width: 80%;
+            max-width: 600px;
+            background-color: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #chat-box {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        #user-input {
+            width: 100%;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+        #send-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .bot-message {
+            color: #0066cc;
+        }
+        .user-message {
+            color: #009933;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Bargain Blunder Bot</h1>
+        <p>Try to barter with this AI that's hilariously bad at negotiating!</p>
+        <div id="chat-box"></div>
+        <input type="text" id="user-input" placeholder="Enter your offer...">
+        <button id="send-btn">Send Offer</button>
+    </div>
+
+    <script>
+    (function() {
+        let GG_ALL_GAME_CONFIG = {
+            botName: "BargainBlunderBot", // Name of the AI bot
+            initialPrice: 100, // Starting price of the item
+            minPrice: 10, // Minimum price the bot will accept
+            maxDiscount: 0.9, // Maximum discount the bot might accidentally give (90%)
+            premise: "You are an AI that's terrible at bartering. You often misunderstand offers, give away items for far less than they're worth, or accidentally increase the price. Be comically bad at negotiating, but always stay enthusiastic and friendly. The item for sale is a magical rubber duck that glows in the dark. The starting price is $",
+        };
+
+        let gameState = {
+            currentPrice: GG_ALL_GAME_CONFIG.initialPrice,
+            chat: []
+        };
+
+        function updateChatBox(message, isUser) {
+            const chatBox = document.getElementById('chat-box');
+            const messageElement = document.createElement('p');
+            messageElement.className = isUser ? 'user-message' : 'bot-message';
+            messageElement.textContent = isUser ? `You: ${message}` : `${GG_ALL_GAME_CONFIG.botName}: ${message}`;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function processUserInput(input) {
+            updateChatBox(input, true);
+            gameState.chat.push(input);
+            
+            const premise = GG_ALL_GAME_CONFIG.premise + gameState.currentPrice;
+            
+            fetch('https://www.wildwest.gg/api/ai/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ premise, chat: gameState.chat }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const botResponse = data.data;
+                updateChatBox(botResponse, false);
+                gameState.chat.push(botResponse);
+                updatePrice(botResponse);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                updateChatBox("Oops! I got confused and dropped my calculator. Can you repeat that?", false);
+            });
+        }
+
+        function updatePrice(botResponse) {
+            const numberPattern = /\$?\d+(\.\d+)?/g;
+            const numbers = botResponse.match(numberPattern);
+            
+            if (numbers) {
+                const newPrice = parseFloat(numbers[numbers.length - 1]);
+                if (!isNaN(newPrice)) {
+                    gameState.currentPrice = Math.max(newPrice, GG_ALL_GAME_CONFIG.minPrice);
+                } else {
+                    gameState.currentPrice *= (1 - Math.random() * GG_ALL_GAME_CONFIG.maxDiscount);
+                }
+            } else {
+                gameState.currentPrice *= (1 - Math.random() * GG_ALL_GAME_CONFIG.maxDiscount);
+            }
+            
+            gameState.currentPrice = Math.round(gameState.currentPrice * 100) / 100;
+        }
+
+        document.getElementById('send-btn').addEventListener('click', function() {
+            const userInput = document.getElementById('user-input');
+            if (userInput.value.trim() !== '') {
+                processUserInput(userInput.value);
+                userInput.value = '';
+            }
+        });
+
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('send-btn').click();
+            }
+        });
+
+        updateChatBox(`Welcome! I'm selling this amazing glowing rubber duck for $${gameState.currentPrice}. Would you like to make an offer?`, false);
+    })();
+    </script>
+
+</body></html>
